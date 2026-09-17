@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+ENV/
+env/
+
+# Build and cache outputs
+.next/
+out/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables & secrets
+.env
+.env*.local
+*.pem
+
+# IDEs & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Databases & Uploads
+*.db
+backend/uploads/
+uploads/
+
