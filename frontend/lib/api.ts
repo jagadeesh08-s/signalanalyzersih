@@ -1,10 +1,21 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
+
+function getHeaders(contentType = 'application/json'): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': contentType,
+  };
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+  return headers;
+}
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...getHeaders(),
       ...options?.headers,
     },
   });
@@ -25,6 +36,9 @@ export async function apiUpload(file: File, config: Record<string, string | numb
   const res = await fetch(`${API_BASE}/files/upload`, {
     method: 'POST',
     body: formData,
+    headers: {
+      'X-API-Key': API_KEY,
+    },
   });
   if (!res.ok) {
     const error = await res.text();

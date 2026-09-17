@@ -16,6 +16,7 @@ from sqlalchemy import select, func, desc
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.auth import authenticate, optional_auth
 from app.models import AnalysisJob, AnalysisStatus, FileType, ModulationType, SignalParameter, SampleSignal
 from app.schemas import (
     AnalysisJobResponse, AnalysisJobList, WaveformResponse, SpectrumResponse,
@@ -52,6 +53,7 @@ async def upload_file(
     scale_factor: float = Form(1.0),
     auto_analyze: bool = Form(True),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Upload an IQ/WAV file and optionally start analysis."""
     # Validate extension
@@ -117,7 +119,7 @@ async def upload_file(
 # ──────────────────────── Analysis ────────────────────────
 
 @router.post("/analysis/start/{job_id}", response_model=AnalysisJobResponse)
-async def start_analysis(job_id: int, db: AsyncSession = Depends(get_db)):
+async def start_analysis(job_id: int, db: AsyncSession = Depends(get_db), _: str = Depends(authenticate)):
     """Start or re-run analysis for a job."""
     job = await _get_job(job_id, db)
     job.status = AnalysisStatus.PROCESSING
@@ -135,6 +137,7 @@ async def list_analyses(
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """List all analysis jobs."""
     total_result = await db.execute(select(func.count(AnalysisJob.id)))
@@ -151,14 +154,14 @@ async def list_analyses(
 
 
 @router.get("/analysis/{job_id}", response_model=AnalysisJobResponse)
-async def get_analysis(job_id: int, db: AsyncSession = Depends(get_db)):
+async def get_analysis(job_id: int, db: AsyncSession = Depends(get_db), _: str = Depends(authenticate)):
     """Get analysis job details."""
     job = await _get_job(job_id, db)
     return _job_to_response(job)
 
 
 @router.get("/analysis/{job_id}/parameters", response_model=List[ParameterResponse])
-async def get_parameters(job_id: int, db: AsyncSession = Depends(get_db)):
+async def get_parameters(job_id: int, db: AsyncSession = Depends(get_db), _: str = Depends(authenticate)):
     """Get extracted signal parameters."""
     result = await db.execute(select(SignalParameter).where(SignalParameter.job_id == job_id))
     params = result.scalars().all()
@@ -173,6 +176,7 @@ async def get_waveform(
     job_id: int,
     max_points: int = Query(10000, le=50000),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Get downsampled waveform data."""
     pipeline = _get_pipeline(job_id)
@@ -187,6 +191,7 @@ async def get_spectrum(
     fft_size: int = Query(4096),
     window: str = Query("hann"),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Get frequency domain / PSD data."""
     pipeline = _get_pipeline(job_id)
@@ -202,6 +207,7 @@ async def get_spectrogram(
     hop: Optional[int] = None,
     window: str = Query("hann"),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Get spectrogram (time-frequency) data."""
     pipeline = _get_pipeline(job_id)
@@ -215,6 +221,7 @@ async def get_constellation(
     job_id: int,
     normalized: bool = Query(False),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Get constellation diagram data."""
     pipeline = _get_pipeline(job_id)
@@ -228,6 +235,7 @@ async def run_demodulation(
     job_id: int,
     request: DemodulationRequest,
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Run demodulation on the signal."""
     pipeline = _get_pipeline(job_id)
@@ -270,6 +278,7 @@ async def get_bitstream(
     offset: int = Query(0, ge=0),
     length: int = Query(1024, ge=8, le=65536),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Get bitstream data with hex and ASCII view."""
     pipeline = _get_pipeline(job_id)
@@ -284,6 +293,7 @@ async def get_bitstream(
 async def correlate_signals(
     request: CorrelationRequest,
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Compare two signals."""
     pipeline_a = _get_pipeline(request.job_id_a)
@@ -312,6 +322,7 @@ async def export_report(
     job_id: int,
     format: str = Query("json"),
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Export analysis report in specified format."""
     job = await _get_job(job_id, db)
@@ -376,6 +387,7 @@ async def export_report(
 async def ai_assistant(
     request: AIAssistantQuery,
     db: AsyncSession = Depends(get_db),
+    _: str = Depends(authenticate),
 ):
     """Context-aware signal analysis assistant."""
     context = {}
@@ -392,7 +404,7 @@ async def ai_assistant(
 # ──────────────────────── Dashboard Stats ────────────────────────
 
 @router.get("/stats")
-async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
+async def get_dashboard_stats(db: AsyncSession = Depends(get_db), _: str = Depends(authenticate)):
     """Get dashboard summary statistics."""
     total = (await db.execute(select(func.count(AnalysisJob.id)))).scalar() or 0
     completed = (await db.execute(
@@ -425,7 +437,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
 # ──────────────────────── ML Evaluation ────────────────────────
 
 @router.get("/ml/eval", response_model=MLEvalResponse)
-async def get_ml_eval(db: AsyncSession = Depends(get_db)):
+async def get_ml_eval(db: AsyncSession = Depends(get_db), _: str = Depends(authenticate)):
     """Get ML model evaluation metrics."""
     from app.modulation.cnn_model import TORCH_AVAILABLE
     

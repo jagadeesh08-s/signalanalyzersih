@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # API Key authentication
+    API_KEY: str = "sih26147-dev-key-change-in-production"
+    ENABLE_AUTH: bool = False  # Set to True in production
+
     class Config:
         env_file = ".env"
         case_sensitive = True
